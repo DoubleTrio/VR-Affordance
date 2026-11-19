@@ -14,18 +14,11 @@ namespace OwnershipStudy
         private const string OfficeRelationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
         private const string PackageRelationships = "http://schemas.openxmlformats.org/package/2006/relationships";
         private const string ContentTypes = "http://schemas.openxmlformats.org/package/2006/content-types";
-        private static readonly string[] SheetNames = { "Session", "Trials", "Attempts" };
+        private static readonly string[] SheetNames = { "Trials" };
 
-        private readonly List<object[]>[] sheets =
-        {
-            new List<object[]>(),
-            new List<object[]>(),
-            new List<object[]>()
-        };
+        private readonly List<object[]>[] sheets = { new List<object[]>() };
 
-        public List<object[]> Session => sheets[0];
-        public List<object[]> Trials => sheets[1];
-        public List<object[]> Attempts => sheets[2];
+        public List<object[]> Trials => sheets[0];
 
         public void Save(string path)
         {

@@ -24,10 +24,6 @@ The app writes one `.xlsx` per session to `StudyResults` under Unity’s persist
 
 The workbook updates at setup and after each attempt. The completion screen appears after the final save. **New session** loads a fresh study scene.
 
-| Sheet | Contents |
-| --- | --- |
-| Session | Session ID and number, handedness, reaching hand, layout order, ownership assignments, pilot settings, elapsed time, and completion status |
-| Trials | One row per started scheduled trial, with target and position, cumulative error counts, latest attempt metrics, and elapsed time across retries |
-| Attempts | One row per attempt, with error or success outcome, cue and interaction timestamps, starting target distance, and sampled controller path |
+The **Trials** sheet has one row per started scheduled trial. It records the session ID, handedness, reaching hand, block, layout, trial number, target mug, ownership, target position, starting reach distance, cue-to-movement and cue-to-grab times, error counts, and trial status.
 
-`miss_count` is an empty grip. `wrong_count` is a wrong-mug grab. `invalid_placement_count` includes drops and releases outside the pad. Trial total time spans the first Start press to the latest attempt end and includes intervening resets and waits. Times are in milliseconds and distances are in meters. Blank timing fields indicate an event that was unavailable or did not occur. Cue timestamps are Unity event times.
+Timing and starting distance come from the successful attempt. Incomplete trials have blank measurements. Error counts include all retries. `miss_count` counts empty grips, `wrong_count` counts wrong-mug grabs, and `invalid_placement_count` includes drops and releases outside the pad. Times are in milliseconds and distances are in meters.

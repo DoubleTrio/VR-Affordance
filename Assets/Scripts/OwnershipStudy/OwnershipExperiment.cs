@@ -34,8 +34,7 @@ namespace OwnershipStudy
         private readonly bool[] lastGrip = new bool[2];
         private readonly List<StudyLayout> layouts = new List<StudyLayout>();
         private readonly List<List<StudyTrial>> blocks = new List<List<StudyTrial>>();
-        private readonly double[] latestTimes = new double[4];
-        private readonly int[] failures = new int[4];
+        private readonly int[] failures = new int[5];
 
         private Stage stage;
         private StudyMode mode;
@@ -46,29 +45,18 @@ namespace OwnershipStudy
         private int agentMug;
         private int blockIndex;
         private int trialIndex;
-        private int attemptNumber;
         private int positionPhase;
         private string sessionId;
         private int sessionSequence;
         private string workbookPath;
-        private double sessionStart;
-        private double trialStart;
-        private double attemptStart;
         private double cueAt;
         private double cueTime;
-        private int cueFrame;
         private double movementCandidate;
         private double movementTime;
         private double grabTime;
         private double releaseTime;
         private float startingDistance;
-        private float reachPath;
-        private float candidatePath;
         private Vector3 originAtCue;
-        private Vector3 lastReachSample;
-        private bool hasReachSample;
-        private int actualMug;
-        private bool trackingInterrupted;
         private Vector3 grabbedOffset;
         private Quaternion grabbedRotation;
         private bool completeAfterSave;
@@ -107,7 +95,6 @@ namespace OwnershipStudy
                 return;
             if (!handTracked[taskHand] || !headTracked)
             {
-                trackingInterrupted = true;
                 FinishAttempt("tracking_interrupted");
                 return;
             }
@@ -231,7 +218,6 @@ namespace OwnershipStudy
             sessionId = Guid.NewGuid().ToString("N");
             string directory = Path.Combine(Application.persistentDataPath, "StudyResults");
             workbookPath = Path.Combine(directory, $"OwnershipStudy_{sessionSequence:D4}_{sessionId}.xlsx");
-            sessionStart = Now;
             InitializeWorkbook();
             SetupTrial();
             SaveProgress();
@@ -249,8 +235,6 @@ namespace OwnershipStudy
 
         private void SetupTrial()
         {
-            attemptNumber = 0;
-            trialStart = -1;
             Array.Clear(failures, 0, failures.Length);
             agent.SetActive(layouts[blockIndex] == StudyLayout.AgentOn);
             ResetMugs();
@@ -277,24 +261,15 @@ namespace OwnershipStudy
                 return;
             }
             ClosePanel();
-            attemptNumber++;
-            attemptStart = Now;
-            if (trialStart < 0) trialStart = attemptStart;
-            cueAt = attemptStart + cueDelayMinSeconds + random.NextDouble() * (cueDelayMaxSeconds - cueDelayMinSeconds);
+            cueAt = Now + cueDelayMinSeconds + random.NextDouble() * (cueDelayMaxSeconds - cueDelayMinSeconds);
             cueTime = movementTime = grabTime = releaseTime = movementCandidate = -1;
-            cueFrame = -1;
-            startingDistance = reachPath = candidatePath = 0;
-            hasReachSample = false;
-            actualMug = -1;
-            trackingInterrupted = false;
             stage = Stage.CueDelay;
         }
 
         private void ShowCue(Vector3 hand, double now)
         {
             cueTime = now;
-            cueFrame = Time.frameCount;
-            originAtCue = lastReachSample = hand;
+            originAtCue = hand;
             startingDistance = Vector3.Distance(hand, grabVolumes[Target].bounds.center);
             cueMarker.position = mugSlots[Trial.Position].position + Vector3.up * 0.003f;
             cueMarker.gameObject.SetActive(true);
@@ -303,23 +278,14 @@ namespace OwnershipStudy
 
         private void SampleReach(Vector3 hand, double now)
         {
-            float segment = Vector3.Distance(lastReachSample, hand);
-            lastReachSample = hand;
-            if (movementTime >= 0)
-            {
-                reachPath += segment;
-                return;
-            }
+            if (movementTime >= 0) return;
             if (Vector3.Distance(hand, originAtCue) < movementThresholdMeters)
             {
                 movementCandidate = -1;
-                candidatePath = 0;
                 return;
             }
             if (movementCandidate < 0)
                 movementCandidate = now;
-            else
-                candidatePath += segment;
 
             if (now - movementCandidate >= movementSustainSeconds)
                 ConfirmMovement();
@@ -328,12 +294,11 @@ namespace OwnershipStudy
         private void ConfirmMovement()
         {
             movementTime = movementCandidate;
-            reachPath = candidatePath;
-            hasReachSample = true;
         }
 
         private void TryGrab(Vector3 hand, double now)
         {
+            int actualMug = -1;
             float closest = 0.035f;
             for (int mug = 0; mug < mugs.Length; mug++)
             {
@@ -389,18 +354,13 @@ namespace OwnershipStudy
 
         private void FinishAttempt(string outcome)
         {
-            double end = Now;
             bool success = outcome == "success";
             if (outcome == "miss") failures[0]++;
             if (outcome == "wrong_mug") failures[1]++;
             if (outcome == "premature") failures[2]++;
             if (outcome == "invalid_placement") failures[3]++;
-            latestTimes[0] = Delta(cueTime, movementTime);
-            latestTimes[1] = Delta(movementTime, grabTime);
-            latestTimes[2] = success ? Delta(grabTime, releaseTime) : -1;
-            latestTimes[3] = success ? Delta(cueTime, releaseTime) : -1;
-            RecordAttempt(outcome, end);
-            RecordTrial(outcome, end);
+            if (outcome == "tracking_interrupted") failures[4]++;
+            RecordTrial(success);
             cueMarker.gameObject.SetActive(false);
 
             bool lastTrial = trialIndex + 1 == blocks[blockIndex].Count;
