@@ -176,7 +176,7 @@ namespace OwnershipStudy
 
         private void UpdatePoses()
         {
-            headTracked = ReadPose(InputDevices.GetDeviceAtXRNode(XRNode.Head), head);
+            headTracked = ReadHeadPose();
             for (int i = 0; i < hands.Length; i++)
             {
                 handTracked[i] = ReadPose(Controller(i), hands[i]);
@@ -192,6 +192,20 @@ namespace OwnershipStudy
 
         private static UnityEngine.XR.InputDevice Controller(int index)
             => InputDevices.GetDeviceAtXRNode(index == 0 ? XRNode.LeftHand : XRNode.RightHand);
+
+        private bool ReadHeadPose()
+        {
+            UnityEngine.XR.InputDevice device = InputDevices.GetDeviceAtXRNode(XRNode.Head);
+            if (device.TryGetFeatureValue(CommonUsages.isTracked, out bool tracked) && tracked &&
+                device.TryGetFeatureValue(CommonUsages.centerEyePosition, out Vector3 position) &&
+                device.TryGetFeatureValue(CommonUsages.centerEyeRotation, out Quaternion rotation))
+            {
+                head.SetLocalPositionAndRotation(position, rotation);
+                return true;
+            }
+
+            return ReadPose(device, head);
+        }
 
         private static bool ReadPose(UnityEngine.XR.InputDevice device, Transform destination)
         {
@@ -410,7 +424,8 @@ namespace OwnershipStudy
 
         private void CopyAvatarMaterials(GameObject visual)
         {
-            var textures = Resources.LoadAll<Texture2D>(ResourceRoot + "Avatar/Textures").ToDictionary(texture => texture.name);
+            var textures = Resources.LoadAll<Texture2D>(ResourceRoot + "Avatar/Textures")
+                .ToDictionary(texture => texture.name, StringComparer.OrdinalIgnoreCase);
             var converted = new Dictionary<string, Material>();
             foreach (Renderer renderer in visual.GetComponentsInChildren<Renderer>())
             {
@@ -423,8 +438,7 @@ namespace OwnershipStudy
                     {
                         material = Paint(Color.white);
                         material.name = name;
-                        if (!textures.TryGetValue(name + "_Diffuse", out Texture2D texture))
-                            texture = slots[index].mainTexture as Texture2D;
+                        textures.TryGetValue(name + "_Diffuse", out Texture2D texture);
                         if (name.Contains("Cornea") || name.Contains("Tearline") || name.Contains("Occlusion"))
                         {
                             texture = Texture2D.blackTexture;
